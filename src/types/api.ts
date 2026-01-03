@@ -1,0 +1,141 @@
+// API Response wrapper
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+// Auth types
+export interface PhoneAuthRequest {
+  phoneNumber: string;
+  countryCode: string;
+}
+
+export interface OtpVerifyRequest {
+  phoneNumber: string;
+  code: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+}
+
+// User types
+export interface User {
+  id: number;
+  phoneNumber: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  countryCode: string;
+}
+
+export interface UpdateProfileRequest {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+export interface TransactionLimitInfo {
+  monthlyLimit: number;
+  usedAmount: number;
+}
+
+// KYC types
+export interface KycStatusResponse {
+  status: 'NONE' | 'PENDING' | 'LEVEL_1' | 'LEVEL_2' | 'REJECTED';
+  level: number;
+}
+
+export interface KycDocumentRequest {
+  documentType: string;
+  documentUrl: string;
+}
+
+// Operator types
+export interface MobileOperator {
+  code: string;
+  name: string;
+}
+
+export interface CountryOperators {
+  country: string;
+  operators: MobileOperator[];
+}
+
+// Transfer types
+export interface TransferPreviewRequest {
+  senderPhone: string;
+  sourceOperator: string;
+  recipientPhone: string;
+  destOperator: string;
+  amount: number;
+}
+
+export interface TransferRequest extends TransferPreviewRequest {
+  recipientName?: string;
+  description?: string;
+}
+
+export interface TransferPreviewResponse {
+  fees: number;
+  total: number;
+  path: string;
+}
+
+export interface TransferResponse {
+  id: number;
+  status: string;
+  amount: number;
+}
+
+// Transaction types
+export interface TransactionRequest {
+  recipientPhone: string;
+  recipientName: string;
+  amount: number;
+  platform: string;
+  description?: string;
+}
+
+export interface TransactionResponse {
+  id: number;
+  status: string;
+  amount: number;
+  currency?: string;
+  type?: 'OUTGOING' | 'INCOMING' | 'TRANSFER';
+  recipientPhone?: string;
+  recipientName?: string;
+  operatorCode?: string;
+  operatorName?: string;
+  createdAt?: string;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  totalPages?: number;
+  totalElements?: number;
+}
+
+// Payment types
+export interface PaymentInitResponse {
+  reference: string;
+  redirectUrl: string;
+}
+
+export interface PaymentStatusResponse {
+  reference: string;
+  status: string;
+}
+
+// Refund types
+export interface RefundRequest {
+  reason: string;
+}
+
+export interface RefundResponse {
+  id: number;
+  status: string;
+}
