@@ -1,16 +1,19 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
   View,
+  Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../hooks/useTheme';
 
-type ButtonVariant = 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+type ButtonVariant = 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive' | 'gradient' | 'success';
 type ButtonSize = 'sm' | 'default' | 'lg';
 
 interface ButtonProps {
@@ -25,6 +28,8 @@ interface ButtonProps {
   fullWidth?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  haptic?: boolean;
+  gradientColors?: string[];
 }
 
 export function Button({
@@ -39,10 +44,40 @@ export function Button({
   fullWidth = true,
   style,
   textStyle,
+  haptic = true,
+  gradientColors,
 }: ButtonProps) {
   const { theme, tokens } = useTheme();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const getVariantStyles = (): { container: ViewStyle; text: TextStyle } => {
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      friction: 8,
+      tension: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 5,
+      tension: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = async () => {
+    if (haptic && !disabled && !loading) {
+      try {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {}
+    }
+    onPress?.();
+  };
+
+  const getVariantStyles = (): { container: ViewStyle; text: TextStyle; shadow?: ViewStyle } => {
     switch (variant) {
       case 'secondary':
         return {
@@ -68,10 +103,23 @@ export function Button({
           container: { backgroundColor: theme.destructive },
           text: { color: '#FFFFFF' },
         };
+      case 'success':
+        return {
+          container: { backgroundColor: theme.success },
+          text: { color: '#FFFFFF' },
+          shadow: tokens.shadows.success,
+        };
+      case 'gradient':
+        return {
+          container: { backgroundColor: 'transparent' },
+          text: { color: '#FFFFFF' },
+          shadow: tokens.shadows.primary,
+        };
       default:
         return {
           container: { backgroundColor: theme.primary },
           text: { color: theme.primaryForeground },
+          shadow: tokens.shadows.primary,
         };
     }
   };
@@ -80,17 +128,29 @@ export function Button({
     switch (size) {
       case 'sm':
         return {
-          container: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: tokens.borderRadius.md },
+          container: { 
+            height: tokens.components.button.height.sm,
+            paddingHorizontal: 16, 
+            borderRadius: tokens.borderRadius.md 
+          },
           text: { fontSize: tokens.typography.fontSize.sm },
         };
       case 'lg':
         return {
-          container: { paddingVertical: 18, paddingHorizontal: 24, borderRadius: tokens.borderRadius.lg },
+          container: { 
+            height: tokens.components.button.height.lg,
+            paddingHorizontal: 28, 
+            borderRadius: tokens.borderRadius.xl 
+          },
           text: { fontSize: tokens.typography.fontSize.lg },
         };
       default:
         return {
-          container: { paddingVertical: 16, paddingHorizontal: 20, borderRadius: tokens.borderRadius.md },
+          container: { 
+            height: tokens.components.button.height.md,
+            paddingHorizontal: 24, 
+            borderRadius: tokens.borderRadius.lg 
+          },
           text: { fontSize: tokens.typography.fontSize.base },
         };
     }
@@ -99,27 +159,12 @@ export function Button({
   const variantStyles = getVariantStyles();
   const sizeStyles = getSizeStyles();
 
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
-      style={[
-        styles.container,
-        variantStyles.container,
-        sizeStyles.container,
-        fullWidth && styles.fullWidth,
-        (disabled || loading) && styles.disabled,
-        style,
-      ]}
-    >
+  const buttonContent = (
+    <View style={styles.content}>
       {loading ? (
-        <ActivityIndicator
-          color={variantStyles.text.color}
-          size="small"
-        />
+        <ActivityIndicator color={variantStyles.text.color} size="small" />
       ) : (
-        <View style={styles.content}>
+        <>
           {icon && iconPosition === 'left' && <View style={styles.iconLeft}>{icon}</View>}
           <Text
             style={[
@@ -132,9 +177,63 @@ export function Button({
             {children}
           </Text>
           {icon && iconPosition === 'right' && <View style={styles.iconRight}>{icon}</View>}
-        </View>
+        </>
       )}
-    </TouchableOpacity>
+    </View>
+  );
+
+  const containerStyles = [
+    styles.container,
+    variantStyles.container,
+    sizeStyles.container,
+    fullWidth && styles.fullWidth,
+    (disabled || loading) && styles.disabled,
+    !disabled && variantStyles.shadow,
+    style,
+  ];
+
+  if (variant === 'gradient') {
+    const colors = gradientColors || ['#3366FF', '#1E40AF'];
+    return (
+      <Pressable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+      >
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+          <LinearGradient
+            colors={colors as any}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[
+              containerStyles,
+              { overflow: 'hidden' },
+            ]}
+          >
+            {buttonContent}
+          </LinearGradient>
+        </Animated.View>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={disabled || loading}
+    >
+      <Animated.View
+        style={[
+          containerStyles,
+          { transform: [{ scale: scaleAnim }] },
+        ]}
+      >
+        {buttonContent}
+      </Animated.View>
+    </Pressable>
   );
 }
 

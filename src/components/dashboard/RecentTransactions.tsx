@@ -1,9 +1,13 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Card, CardHeader, CardContent } from '../ui/Card';
+import * as Haptics from 'expo-haptics';
+import { Card } from '../ui/Card';
 import { StatusBadge } from '../ui/StatusBadge';
+import { EmptyState } from '../ui/EmptyState';
+import { TransactionSkeleton } from '../ui/Skeleton';
 import { useTheme } from '../../hooks/useTheme';
 import type { TransactionResponse } from '../../types/api';
 
@@ -49,6 +53,102 @@ function formatAmount(amount: number): string {
   return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
 }
 
+interface TransactionItemProps {
+  tx: TransactionResponse;
+  isLast: boolean;
+}
+
+function TransactionItem({ tx, isLast }: TransactionItemProps) {
+  const { theme, tokens } = useTheme();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const txType = tx.type === 'OUTGOING' || tx.type === 'TRANSFER' ? 'outgoing' : 'incoming';
+  const status = statusMap[tx.status] || 'pending';
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 5,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    // Navigate to transaction details
+  };
+
+  const iconGradient = txType === 'outgoing' 
+    ? ['#3366FF', '#1E40AF'] 
+    : ['#22C55E', '#16A34A'];
+
+  return (
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+    >
+      <Animated.View
+        style={[
+          styles.transactionItem,
+          !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border + '40' },
+          { transform: [{ scale: scaleAnim }] },
+        ]}
+      >
+        <LinearGradient
+          colors={iconGradient as any}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.txIcon}
+        >
+          <Ionicons
+            name={txType === 'outgoing' ? 'arrow-up' : 'arrow-down'}
+            size={18}
+            color="#FFFFFF"
+          />
+        </LinearGradient>
+
+        <View style={styles.txInfo}>
+          <View style={styles.txHeader}>
+            <Text style={[styles.txName, { color: theme.foreground }]} numberOfLines={1}>
+              {tx.recipientName || tx.operatorName || 'Transfert'}
+            </Text>
+            <Text
+              style={[
+                styles.txAmount,
+                { color: txType === 'outgoing' ? theme.foreground : theme.success },
+              ]}
+            >
+              {txType === 'outgoing' ? '-' : '+'}
+              {formatAmount(tx.amount)}
+            </Text>
+          </View>
+          <View style={styles.txFooter}>
+            <Text style={[styles.txDate, { color: theme.mutedForeground }]}>
+              {formatDate(tx.createdAt)}
+            </Text>
+            <StatusBadge
+              status={status}
+              label={statusLabels[tx.status] || tx.status}
+              size="sm"
+            />
+          </View>
+        </View>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export function RecentTransactions({
   transactions,
   loading = false,
@@ -61,121 +161,70 @@ export function RecentTransactions({
   const renderContent = () => {
     if (loading && transactions.length === 0) {
       return (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
+        <View style={styles.skeletonContainer}>
+          {[1, 2, 3].map((i) => (
+            <TransactionSkeleton key={i} />
+          ))}
         </View>
       );
     }
 
     if (error) {
       return (
-        <View style={styles.centerContainer}>
-          <Text style={[styles.errorText, { color: theme.destructive }]}>{error}</Text>
-          {onRetry && (
-            <TouchableOpacity onPress={onRetry} style={styles.retryButton}>
-              <Text style={[styles.retryText, { color: theme.primary }]}>Réessayer</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <EmptyState
+          variant="error"
+          title="Erreur de chargement"
+          description={error}
+          actionLabel="Réessayer"
+          onAction={onRetry}
+        />
       );
     }
 
     if (recentTransactions.length === 0) {
       return (
-        <View style={styles.emptyContainer}>
-          <View style={[styles.emptyIcon, { backgroundColor: theme.muted }]}>
-            <Ionicons name="receipt-outline" size={24} color={theme.mutedForeground} />
-          </View>
-          <Text style={[styles.emptyTitle, { color: theme.mutedForeground }]}>
-            Aucune transaction récente
-          </Text>
-          <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
-            Vos transactions apparaîtront ici
-          </Text>
-        </View>
+        <EmptyState
+          variant="transactions"
+          title="Aucune transaction"
+          description="Vos transactions apparaîtront ici"
+        />
       );
     }
 
     return (
       <View>
-        {recentTransactions.map((tx, index) => {
-          const txType = tx.type === 'OUTGOING' || tx.type === 'TRANSFER' ? 'outgoing' : 'incoming';
-          const status = statusMap[tx.status] || 'pending';
-          const isLast = index === recentTransactions.length - 1;
-
-          return (
-            <TouchableOpacity
-              key={tx.id}
-              style={[
-                styles.transactionItem,
-                !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border + '50' },
-              ]}
-              onPress={() => {}}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.txIcon,
-                  {
-                    backgroundColor: txType === 'outgoing'
-                      ? theme.secondary
-                      : theme.successLight,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={txType === 'outgoing' ? 'arrow-up' : 'arrow-down'}
-                  size={20}
-                  color={txType === 'outgoing' ? theme.primary : theme.success}
-                />
-              </View>
-
-              <View style={styles.txInfo}>
-                <View style={styles.txHeader}>
-                  <Text style={[styles.txName, { color: theme.foreground }]} numberOfLines={1}>
-                    {tx.operatorName || tx.operatorCode || 'Transfert'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.txAmount,
-                      { color: txType === 'outgoing' ? theme.foreground : theme.success },
-                    ]}
-                  >
-                    {txType === 'outgoing' ? '-' : '+'}
-                    {formatAmount(tx.amount)}
-                  </Text>
-                </View>
-                <View style={styles.txFooter}>
-                  <Text style={[styles.txDate, { color: theme.mutedForeground }]}>
-                    {formatDate(tx.createdAt)}
-                  </Text>
-                  <StatusBadge
-                    status={status}
-                    label={statusLabels[tx.status] || tx.status}
-                    size="sm"
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {recentTransactions.map((tx, index) => (
+          <TransactionItem
+            key={tx.id}
+            tx={tx}
+            isLast={index === recentTransactions.length - 1}
+          />
+        ))}
       </View>
     );
   };
 
   return (
-    <Card padding="none">
+    <Card padding="none" animated>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.foreground }]}>
-          Transactions récentes
-        </Text>
-        <TouchableOpacity
+        <View style={styles.headerLeft}>
+          <View style={[styles.headerIcon, { backgroundColor: theme.primaryLighter }]}>
+            <Ionicons name="receipt" size={16} color={theme.primary} />
+          </View>
+          <Text style={[styles.title, { color: theme.foreground }]}>
+            Transactions récentes
+          </Text>
+        </View>
+        <Pressable
           onPress={() => router.push('/(tabs)/history')}
-          style={styles.seeAllButton}
+          style={({ pressed }) => [
+            styles.seeAllButton,
+            pressed && { opacity: 0.7 },
+          ]}
         >
           <Text style={[styles.seeAllText, { color: theme.primary }]}>Tout voir</Text>
-          <Ionicons name="arrow-forward" size={14} color={theme.primary} />
-        </TouchableOpacity>
+          <Ionicons name="chevron-forward" size={16} color={theme.primary} />
+        </Pressable>
       </View>
       {renderContent()}
     </Card>
@@ -189,7 +238,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 8,
+    paddingBottom: 12,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 16,
@@ -198,50 +259,17 @@ const styles = StyleSheet.create({
   seeAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   seeAllText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
-  centerContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
+  skeletonContainer: {
     paddingHorizontal: 16,
-  },
-  errorText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 12,
-  },
-  retryText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 16,
-  },
-  emptyIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  emptyText: {
-    fontSize: 12,
-    textAlign: 'center',
+    paddingBottom: 8,
   },
   transactionItem: {
     flexDirection: 'row',
@@ -251,8 +279,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   txIcon: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -268,7 +296,7 @@ const styles = StyleSheet.create({
   },
   txName: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
     flex: 1,
     marginRight: 8,
   },

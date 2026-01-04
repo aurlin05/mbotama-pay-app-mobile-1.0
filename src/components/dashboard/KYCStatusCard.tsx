@@ -1,10 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Card } from '../ui/Card';
 import { StatusBadge } from '../ui/StatusBadge';
-import { Button } from '../ui/Button';
+import { ProgressCircle } from '../ui/AnimatedFeedback';
 import { useTheme } from '../../hooks/useTheme';
 
 type KYCStatus = 'not_started' | 'pending' | 'verified' | 'rejected';
@@ -21,7 +23,8 @@ const kycConfig = {
     statusLabel: 'Non commencé',
     statusType: 'warning' as const,
     action: 'Commencer',
-    href: '/(tabs)/profile',
+    gradient: ['#F59E0B', '#D97706'],
+    icon: 'shield-outline' as const,
   },
   pending: {
     title: 'En cours de vérification',
@@ -29,15 +32,17 @@ const kycConfig = {
     statusLabel: 'En attente',
     statusType: 'pending' as const,
     action: 'Voir le statut',
-    href: '/(tabs)/profile',
+    gradient: ['#3B82F6', '#2563EB'],
+    icon: 'time-outline' as const,
   },
   verified: {
     title: 'Identité vérifiée',
-    description: 'Vous pouvez envoyer de l\'argent',
+    description: 'Vous pouvez envoyer de l\'argent sans limite',
     statusLabel: 'Vérifié',
     statusType: 'success' as const,
     action: 'Voir détails',
-    href: '/(tabs)/profile',
+    gradient: ['#22C55E', '#16A34A'],
+    icon: 'shield-checkmark' as const,
   },
   rejected: {
     title: 'Vérification échouée',
@@ -45,88 +50,149 @@ const kycConfig = {
     statusLabel: 'Rejeté',
     statusType: 'failed' as const,
     action: 'Réessayer',
-    href: '/(tabs)/profile',
+    gradient: ['#EF4444', '#DC2626'],
+    icon: 'close-circle-outline' as const,
   },
 };
 
 export function KYCStatusCard({ status, progress = 0 }: KYCStatusCardProps) {
   const { theme, tokens } = useTheme();
   const config = kycConfig[status];
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const getIconConfig = () => {
-    switch (status) {
-      case 'verified':
-        return { name: 'person-circle', color: theme.success, bgColor: theme.successLight };
-      case 'rejected':
-        return { name: 'document-text', color: theme.destructive, bgColor: theme.destructiveLight };
-      default:
-        return { name: 'shield-checkmark', color: theme.primary, bgColor: theme.secondary };
+  useEffect(() => {
+    if (status === 'pending') {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
     }
+  }, [status]);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
   };
 
-  const iconConfig = getIconConfig();
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 5,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    router.push('/(tabs)/profile');
+  };
 
   return (
-    <Card style={styles.card}>
-      <View style={styles.content}>
-        <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: iconConfig.bgColor },
-          ]}
-        >
-          <Ionicons
-            name={iconConfig.name as any}
-            size={28}
-            color={iconConfig.color}
-          />
-        </View>
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <Card style={styles.card} animated>
+          <View style={styles.content}>
+            {/* Icon with gradient */}
+            <Animated.View style={{ transform: [{ scale: status === 'pending' ? pulseAnim : 1 }] }}>
+              <LinearGradient
+                colors={config.gradient as any}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.iconContainer}
+              >
+                <Ionicons name={config.icon} size={26} color="#FFFFFF" />
+              </LinearGradient>
+            </Animated.View>
 
-        <View style={styles.info}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.foreground }]} numberOfLines={1}>
-              {config.title}
-            </Text>
-            <StatusBadge status={config.statusType} label={config.statusLabel} size="sm" />
-          </View>
-          <Text style={[styles.description, { color: theme.mutedForeground }]}>
-            {config.description}
-          </Text>
-
-          {status === 'not_started' && progress > 0 && (
-            <View style={styles.progressSection}>
-              <View style={styles.progressHeader}>
-                <Text style={[styles.progressLabel, { color: theme.mutedForeground }]}>
-                  Progression
+            <View style={styles.info}>
+              <View style={styles.header}>
+                <Text style={[styles.title, { color: theme.foreground }]} numberOfLines={1}>
+                  {config.title}
                 </Text>
-                <Text style={[styles.progressValue, { color: theme.primary }]}>
-                  {progress}%
-                </Text>
+                <StatusBadge status={config.statusType} label={config.statusLabel} size="sm" />
               </View>
-              <View style={[styles.progressBar, { backgroundColor: theme.muted }]}>
-                <View
+              <Text style={[styles.description, { color: theme.mutedForeground }]}>
+                {config.description}
+              </Text>
+
+              {/* Progress bar for not_started */}
+              {status === 'not_started' && progress > 0 && (
+                <View style={styles.progressSection}>
+                  <View style={styles.progressHeader}>
+                    <Text style={[styles.progressLabel, { color: theme.mutedForeground }]}>
+                      Progression
+                    </Text>
+                    <Text style={[styles.progressValue, { color: theme.primary }]}>
+                      {progress}%
+                    </Text>
+                  </View>
+                  <View style={[styles.progressBar, { backgroundColor: theme.muted }]}>
+                    <LinearGradient
+                      colors={['#3366FF', '#1E40AF']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.progressFill, { width: `${progress}%` }]}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Action button */}
+              <View style={styles.actionContainer}>
+                <LinearGradient
+                  colors={status === 'verified' ? ['transparent', 'transparent'] : config.gradient as any}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
                   style={[
-                    styles.progressFill,
-                    { width: `${progress}%`, backgroundColor: theme.primary },
+                    styles.actionButton,
+                    status === 'verified' && {
+                      borderWidth: 1.5,
+                      borderColor: theme.success,
+                    },
                   ]}
-                />
+                >
+                  <Text
+                    style={[
+                      styles.actionText,
+                      { color: status === 'verified' ? theme.success : '#FFFFFF' },
+                    ]}
+                  >
+                    {config.action}
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={16}
+                    color={status === 'verified' ? theme.success : '#FFFFFF'}
+                  />
+                </LinearGradient>
               </View>
             </View>
-          )}
-
-          <Button
-            variant={status === 'verified' ? 'outline' : 'default'}
-            size="sm"
-            onPress={() => router.push(config.href as any)}
-            style={styles.button}
-            icon={<Ionicons name="arrow-forward" size={16} color={status === 'verified' ? theme.primary : '#FFFFFF'} />}
-            iconPosition="right"
-          >
-            {config.action}
-          </Button>
-        </View>
-      </View>
-    </Card>
+          </View>
+        </Card>
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -141,7 +207,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 56,
     height: 56,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -157,15 +223,15 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     flex: 1,
   },
   description: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   progressSection: {
-    marginTop: 16,
+    marginTop: 14,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -180,16 +246,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   progressBar: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
-  button: {
-    marginTop: 16,
-    height: 44,
+  actionContainer: {
+    marginTop: 14,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    gap: 6,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

@@ -1,12 +1,16 @@
-import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, StyleSheet, ViewStyle, Animated, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../hooks/useTheme';
 
 interface CardProps {
   children: React.ReactNode;
   style?: ViewStyle;
-  variant?: 'default' | 'elevated' | 'outline' | 'gradient';
-  padding?: 'none' | 'sm' | 'md' | 'lg';
+  variant?: 'default' | 'elevated' | 'outline' | 'gradient' | 'glass' | 'highlight';
+  padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  onPress?: () => void;
+  animated?: boolean;
+  gradientColors?: string[];
 }
 
 export function Card({
@@ -14,8 +18,43 @@ export function Card({
   style,
   variant = 'default',
   padding = 'md',
+  onPress,
+  animated = false,
+  gradientColors,
 }: CardProps) {
   const { theme, tokens } = useTheme();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(animated ? 0 : 1)).current;
+
+  useEffect(() => {
+    if (animated) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [animated]);
+
+  const handlePressIn = () => {
+    if (onPress) {
+      Animated.spring(scaleAnim, {
+        toValue: 0.98,
+        friction: 8,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  const handlePressOut = () => {
+    if (onPress) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 5,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
 
   const getVariantStyles = (): ViewStyle => {
     switch (variant) {
@@ -27,12 +66,26 @@ export function Card({
       case 'outline':
         return {
           backgroundColor: theme.surface,
-          borderWidth: 1,
+          borderWidth: 1.5,
           borderColor: theme.border,
         };
       case 'gradient':
         return {
-          backgroundColor: theme.primary,
+          backgroundColor: 'transparent',
+        };
+      case 'glass':
+        return {
+          backgroundColor: theme.surface + 'E6', // 90% opacity
+          borderWidth: 1,
+          borderColor: theme.border + '50',
+          ...tokens.shadows.md,
+        };
+      case 'highlight':
+        return {
+          backgroundColor: theme.surface,
+          borderWidth: 2,
+          borderColor: theme.primary + '30',
+          ...tokens.shadows.primary,
         };
       default:
         return {
@@ -43,30 +96,51 @@ export function Card({
   };
 
   const getPaddingStyles = (): ViewStyle => {
-    switch (padding) {
-      case 'none':
-        return { padding: 0 };
-      case 'sm':
-        return { padding: tokens.spacing.sm };
-      case 'lg':
-        return { padding: tokens.spacing.lg };
-      default:
-        return { padding: tokens.spacing.md };
-    }
+    const paddingMap = {
+      none: 0,
+      sm: tokens.components.card.padding.sm,
+      md: tokens.components.card.padding.md,
+      lg: tokens.components.card.padding.lg,
+      xl: tokens.components.card.padding.xl,
+    };
+    return { padding: paddingMap[padding] };
   };
 
-  return (
-    <View
-      style={[
-        styles.card,
-        { borderRadius: tokens.borderRadius.xl },
-        getVariantStyles(),
-        getPaddingStyles(),
-        style,
-      ]}
+  const cardStyles = [
+    styles.card,
+    { borderRadius: tokens.borderRadius.xl },
+    getVariantStyles(),
+    getPaddingStyles(),
+    style,
+  ];
+
+  const content = variant === 'gradient' ? (
+    <LinearGradient
+      colors={(gradientColors || ['#3366FF', '#1E40AF']) as any}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[cardStyles, { overflow: 'hidden' }]}
     >
       {children}
-    </View>
+    </LinearGradient>
+  ) : (
+    <View style={cardStyles}>{children}</View>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+        <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: fadeAnim }}>
+          {content}
+        </Animated.View>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Animated.View style={{ opacity: fadeAnim }}>
+      {content}
+    </Animated.View>
   );
 }
 
