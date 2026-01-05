@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Animated, useWindowDimensions, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,11 +13,19 @@ import { OTP_LENGTH, OTP_RESEND_DELAY } from '../../src/constants/config';
 
 export default function VerifyOtpScreen() {
   const { theme, tokens } = useTheme();
+  const { width, height } = useWindowDimensions();
   const { pendingPhone, pendingCountryCode, clearPendingAuth, fetchUserData } = useAuthStore();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(OTP_RESEND_DELAY);
   const inputRef = useRef<TextInput>(null);
+  
+  // Responsive values
+  const isSmallScreen = width < 360;
+  const isLargeScreen = width >= 768;
+  const otpBoxSize = isSmallScreen ? 44 : isLargeScreen ? 56 : 52;
+  const otpGap = isSmallScreen ? 8 : 12;
+  const iconSize = isSmallScreen ? 60 : isLargeScreen ? 80 : 72;
   
   // Animation
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -98,104 +106,118 @@ export default function VerifyOtpScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Background decoration */}
       <View style={styles.bgDecoration}>
-        <View style={[styles.bgCircle1, { backgroundColor: theme.primary + '10' }]} />
+        <View style={[styles.bgCircle1, { backgroundColor: theme.primary + '10', width: width * 0.8, height: width * 0.8, borderRadius: width * 0.4 }]} />
         <View style={[styles.bgCircle2, { backgroundColor: theme.primary + '08' }]} />
       </View>
 
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: theme.surface }]}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color={theme.foreground} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Icon */}
-        <View style={styles.iconContainer}>
-          <LinearGradient
-            colors={['#3366FF', '#1E40AF']}
-            style={styles.iconGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="mail-open" size={36} color="#FFFFFF" />
-          </LinearGradient>
-        </View>
-
-        <Text style={[styles.title, { color: theme.foreground }]}>Vérification</Text>
-        <Text style={[styles.subtitle, { color: theme.mutedForeground }]}>
-          Entrez le code envoyé au {maskedPhone}
-        </Text>
-
-        {/* OTP Input */}
-        <Card style={styles.otpCard}>
-          <Animated.View style={[styles.otpContainer, { transform: [{ translateX: shakeAnim }] }]}>
-            <View style={styles.otpBoxes}>
-              {Array.from({ length: OTP_LENGTH }).map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.otpBox,
-                    {
-                      borderColor: otp[index] ? theme.primary : theme.border,
-                      backgroundColor: otp[index] ? theme.secondary : theme.surface,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.otpText, { color: theme.foreground }]}>
-                    {otp[index] || ''}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            <TextInput
-              ref={inputRef}
-              style={styles.hiddenInput}
-              value={otp}
-              onChangeText={handleOtpChange}
-              keyboardType="number-pad"
-              maxLength={OTP_LENGTH}
-              autoFocus
-            />
-            <TouchableOpacity
-              style={styles.otpTouchable}
-              onPress={() => inputRef.current?.focus()}
-              activeOpacity={1}
-            />
-          </Animated.View>
-
-          <Button
-            onPress={handleVerify}
-            loading={loading}
-            disabled={loading || otp.length !== OTP_LENGTH}
-            style={styles.button}
-            icon={<Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />}
-          >
-            Vérifier
-          </Button>
-        </Card>
-
-        {/* Resend */}
-        <TouchableOpacity
-          style={styles.resendButton}
-          onPress={handleResend}
-          disabled={resendTimer > 0}
+      <KeyboardAvoidingView 
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView 
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: isLargeScreen ? 48 : 24 }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text
-            style={[
-              styles.resendText,
-              { color: resendTimer > 0 ? theme.mutedForeground : theme.primary },
-            ]}
-          >
-            {resendTimer > 0
-              ? `Renvoyer le code dans ${resendTimer}s`
-              : 'Renvoyer le code'}
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={[styles.backButton, { backgroundColor: theme.surface }]}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color={theme.foreground} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Icon */}
+          <View style={styles.iconContainer}>
+            <LinearGradient
+              colors={['#3366FF', '#1E40AF']}
+              style={[styles.iconGradient, { width: iconSize, height: iconSize, borderRadius: iconSize * 0.28 }]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="mail-open" size={iconSize * 0.5} color="#FFFFFF" />
+            </LinearGradient>
+          </View>
+
+          <Text style={[styles.title, { color: theme.foreground, fontSize: isSmallScreen ? 24 : 28 }]}>Vérification</Text>
+          <Text style={[styles.subtitle, { color: theme.mutedForeground, fontSize: isSmallScreen ? 14 : 15 }]}>
+            Entrez le code envoyé au {maskedPhone}
           </Text>
-        </TouchableOpacity>
-      </View>
+
+          {/* OTP Input */}
+          <Card style={{ 
+            padding: isSmallScreen ? 16 : 24, 
+            ...(isLargeScreen && { maxWidth: 500, alignSelf: 'center' as const, width: '100%' })
+          }}>
+            <Animated.View style={[styles.otpContainer, { transform: [{ translateX: shakeAnim }] }]}>
+              <View style={[styles.otpBoxes, { gap: otpGap }]}>
+                {Array.from({ length: OTP_LENGTH }).map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.otpBox,
+                      {
+                        width: otpBoxSize,
+                        height: otpBoxSize * 1.15,
+                        borderColor: otp[index] ? theme.primary : theme.border,
+                        backgroundColor: otp[index] ? theme.secondary : theme.surface,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.otpText, { color: theme.foreground, fontSize: isSmallScreen ? 20 : 24 }]}>
+                      {otp[index] || ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              <TextInput
+                ref={inputRef}
+                style={styles.hiddenInput}
+                value={otp}
+                onChangeText={handleOtpChange}
+                keyboardType="number-pad"
+                maxLength={OTP_LENGTH}
+                autoFocus
+              />
+              <TouchableOpacity
+                style={styles.otpTouchable}
+                onPress={() => inputRef.current?.focus()}
+                activeOpacity={1}
+              />
+            </Animated.View>
+
+            <Button
+              onPress={handleVerify}
+              loading={loading}
+              disabled={loading || otp.length !== OTP_LENGTH}
+              style={styles.button}
+              icon={<Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />}
+            >
+              Vérifier
+            </Button>
+          </Card>
+
+          {/* Resend */}
+          <TouchableOpacity
+            style={styles.resendButton}
+            onPress={handleResend}
+            disabled={resendTimer > 0}
+          >
+            <Text
+              style={[
+                styles.resendText,
+                { color: resendTimer > 0 ? theme.mutedForeground : theme.primary },
+              ]}
+            >
+              {resendTimer > 0
+                ? `Renvoyer le code dans ${resendTimer}s`
+                : 'Renvoyer le code'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -203,6 +225,13 @@ export default function VerifyOtpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 24,
   },
   bgDecoration: {
     position: 'absolute',
@@ -213,9 +242,6 @@ const styles = StyleSheet.create({
   },
   bgCircle1: {
     position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
     top: -100,
     right: -100,
   },
@@ -226,10 +252,6 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     bottom: 100,
     left: -50,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
   },
   header: {
     marginBottom: 24,
@@ -251,9 +273,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   iconGradient: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#3366FF',
@@ -263,18 +282,16 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   title: {
-    fontSize: 28,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 15,
     textAlign: 'center',
     marginBottom: 32,
   },
   otpCard: {
-    padding: 24,
+    // padding handled inline
   },
   otpContainer: {
     position: 'relative',
@@ -283,18 +300,15 @@ const styles = StyleSheet.create({
   otpBoxes: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
+    flexWrap: 'wrap',
   },
   otpBox: {
-    width: 52,
-    height: 60,
     borderRadius: 14,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   otpText: {
-    fontSize: 24,
     fontWeight: '700',
   },
   hiddenInput: {
