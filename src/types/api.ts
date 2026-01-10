@@ -58,10 +58,21 @@ export interface KycDocumentRequest {
 export interface MobileOperator {
   code: string;
   name: string;
+  logo?: string;
+  color?: string;
+  countryCode?: string;
+}
+
+export interface CountryInfo {
+  code: string;
+  name: string;
+  flag: string;
+  phonePrefix: string;
+  currency: string;
 }
 
 export interface CountryOperators {
-  country: string;
+  country: CountryInfo | null;
   operators: MobileOperator[];
 }
 
@@ -75,20 +86,47 @@ export interface TransferPreviewRequest {
 }
 
 export interface TransferRequest extends TransferPreviewRequest {
-  recipientName?: string;
+  recipientName: string;
   description?: string;
 }
 
 export interface TransferPreviewResponse {
-  fees: number;
-  total: number;
-  path: string;
+  available: boolean;
+  amount: number;
+  fee: number;
+  totalAmount: number;
+  feePercent: number;
+  gatewayFee: number;
+  appFee: number;
+  gateway: string;
+  sourceCountry: string;
+  destCountry: string;
+  sourceOperatorName: string;
+  destOperatorName: string;
+  useStock: boolean;
+  reason?: string;
+  // Aliases pour compatibilité
+  fees?: number;
+  total?: number;
 }
 
 export interface TransferResponse {
-  id: number;
-  status: string;
+  success: boolean;
+  transactionId: number;
+  reference: string;
   amount: number;
+  fee: number;
+  totalAmount: number;
+  feePercent: number;
+  status: string;
+  message: string;
+  gateway: string;
+  sourceCountry: string;
+  destCountry: string;
+  sourceOperatorName: string;
+  destOperatorName: string;
+  // Alias pour compatibilité
+  id?: number;
 }
 
 // Transaction types
