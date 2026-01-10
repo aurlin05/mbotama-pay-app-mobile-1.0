@@ -159,43 +159,43 @@ export const designTokens = {
     xs: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.03,
-      shadowRadius: 2,
+      shadowOpacity: 0.06,
+      shadowRadius: 3,
       elevation: 1,
     },
     sm: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
       elevation: 2,
     },
     md: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
+      shadowOpacity: 0.12,
+      shadowRadius: 10,
       elevation: 4,
     },
     lg: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.12,
-      shadowRadius: 16,
+      shadowOpacity: 0.15,
+      shadowRadius: 18,
       elevation: 8,
     },
     xl: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: 0.15,
-      shadowRadius: 24,
+      shadowOpacity: 0.18,
+      shadowRadius: 26,
       elevation: 12,
     },
     '2xl': {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 16 },
-      shadowOpacity: 0.2,
-      shadowRadius: 32,
+      shadowOpacity: 0.22,
+      shadowRadius: 36,
       elevation: 16,
     },
     primary: {
@@ -298,33 +298,33 @@ export const designTokens = {
   },
 } as const;
 
-// Light theme colors
+// Light theme colors - Enhanced contrast
 export const lightTheme = {
   primary: designTokens.colors.primary.main,
   primaryLight: designTokens.colors.primary.light,
-  primaryLighter: designTokens.colors.primary.lighter,
+  primaryLighter: '#E0E7FF', // Plus visible que #EEF2FF
   primaryDark: designTokens.colors.primary.dark,
   primaryForeground: designTokens.colors.primary.foreground,
   secondary: designTokens.colors.secondary.main,
   secondaryForeground: designTokens.colors.secondary.foreground,
-  background: designTokens.colors.background.light,
-  surface: designTokens.colors.surface.light,
-  foreground: designTokens.colors.foreground.light,
-  muted: designTokens.colors.muted.light,
-  mutedForeground: designTokens.colors.muted.foreground.light,
+  background: '#F1F5F9', // Plus foncé pour meilleur contraste avec surface
+  surface: '#FFFFFF',
+  foreground: '#0F172A', // Plus foncé pour meilleur contraste texte
+  muted: '#E2E8F0', // Plus visible
+  mutedForeground: '#475569', // Plus foncé pour meilleure lisibilité
   accent: designTokens.colors.accent.light,
-  border: designTokens.colors.border.light,
+  border: '#CBD5E1', // Plus visible
   success: designTokens.colors.success.main,
-  successLight: designTokens.colors.success.light,
+  successLight: '#D1FAE5', // Plus saturé
   successDark: designTokens.colors.success.dark,
   warning: designTokens.colors.warning.main,
-  warningLight: designTokens.colors.warning.light,
+  warningLight: '#FEF3C7',
   warningDark: designTokens.colors.warning.dark,
   destructive: designTokens.colors.destructive.main,
-  destructiveLight: designTokens.colors.destructive.light,
+  destructiveLight: '#FECACA', // Plus saturé
   destructiveDark: designTokens.colors.destructive.dark,
   info: designTokens.colors.info.main,
-  infoLight: designTokens.colors.info.light,
+  infoLight: '#BFDBFE', // Plus saturé
   // Accent colors
   accentOrange: designTokens.colors.accentColors.orange,
   accentPurple: designTokens.colors.accentColors.purple,
@@ -333,6 +333,8 @@ export const lightTheme = {
   // Overlay
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayLight: 'rgba(0, 0, 0, 0.3)',
+  // Card specific - pour bordures visibles en light mode
+  cardBorder: '#E2E8F0',
 };
 
 // Dark theme colors
@@ -370,6 +372,8 @@ export const darkTheme = {
   // Overlay
   overlay: 'rgba(0, 0, 0, 0.7)',
   overlayLight: 'rgba(0, 0, 0, 0.5)',
+  // Card specific
+  cardBorder: '#334155',
 };
 
 export type Theme = typeof lightTheme;

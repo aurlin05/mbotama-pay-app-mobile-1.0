@@ -1,4 +1,4 @@
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://mbotamapay-backend.onrender.com/api/v1';
 
 export const COUNTRY_CODES = [
   { code: '+221', country: 'SN', name: 'Sénégal', flag: '🇸🇳' },

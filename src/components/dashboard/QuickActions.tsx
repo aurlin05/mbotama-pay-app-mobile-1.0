@@ -10,38 +10,27 @@ interface QuickAction {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   href: string;
-  color: 'primary' | 'success' | 'warning' | 'purple' | 'teal';
-  gradient?: string[];
+  gradient: string[];
 }
 
 const actions: QuickAction[] = [
   {
-    label: 'Envoyer',
-    icon: 'paper-plane',
-    href: '/(tabs)/transfer',
-    color: 'primary',
-    gradient: ['#3366FF', '#1E40AF'],
-  },
-  {
-    label: 'Recevoir',
-    icon: 'download',
-    href: '/(tabs)/history',
-    color: 'success',
-    gradient: ['#22C55E', '#16A34A'],
-  },
-  {
     label: 'Historique',
     icon: 'time',
     href: '/(tabs)/history',
-    color: 'purple',
     gradient: ['#8B5CF6', '#7C3AED'],
   },
   {
-    label: 'Plus',
-    icon: 'grid',
+    label: 'Profil',
+    icon: 'person',
     href: '/(tabs)/profile',
-    color: 'teal',
     gradient: ['#14B8A6', '#0D9488'],
+  },
+  {
+    label: 'Support',
+    icon: 'chatbubble-ellipses',
+    href: '/(tabs)/profile',
+    gradient: ['#F59E0B', '#D97706'],
   },
 ];
 
@@ -56,7 +45,7 @@ function QuickActionCard({ action, index }: QuickActionCardProps) {
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
-      toValue: 0.92,
+      toValue: 0.9,
       friction: 8,
       tension: 300,
       useNativeDriver: true,
@@ -75,7 +64,7 @@ function QuickActionCard({ action, index }: QuickActionCardProps) {
   const handlePress = async () => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {}
+    } catch { }
     router.push(action.href as any);
   };
 
@@ -87,14 +76,14 @@ function QuickActionCard({ action, index }: QuickActionCardProps) {
       style={styles.cardWrapper}
     >
       <Animated.View style={[styles.cardContainer, { transform: [{ scale: scaleAnim }] }]}>
-        <View style={[styles.card, { backgroundColor: theme.surface, ...tokens.shadows.md }]}>
+        <View style={styles.card}>
           <LinearGradient
-            colors={(action.gradient || ['#3366FF', '#1E40AF']) as any}
+            colors={action.gradient as any}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.iconContainer}
           >
-            <Ionicons name={action.icon} size={22} color="#FFFFFF" />
+            <Ionicons name={action.icon} size={24} color="#FFFFFF" />
           </LinearGradient>
           <Text style={[styles.label, { color: theme.foreground }]} numberOfLines={1}>
             {action.label}
@@ -106,95 +95,53 @@ function QuickActionCard({ action, index }: QuickActionCardProps) {
 }
 
 export function QuickActions() {
+  const { theme } = useTheme();
+
   return (
     <View style={styles.container}>
-      {actions.map((action, index) => (
-        <QuickActionCard key={action.href + index} action={action} index={index} />
-      ))}
-    </View>
-  );
-}
-
-// Alternative: Horizontal Scrollable Quick Actions
-export function QuickActionsHorizontal() {
-  const { theme, tokens } = useTheme();
-
-  return (
-    <View style={styles.horizontalContainer}>
-      {actions.map((action, index) => (
-        <Pressable
-          key={action.href + index}
-          style={[styles.horizontalCard, { backgroundColor: theme.surface, ...tokens.shadows.sm }]}
-          onPress={() => router.push(action.href as any)}
-        >
-          <LinearGradient
-            colors={(action.gradient || ['#3366FF', '#1E40AF']) as any}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.horizontalIcon}
-          >
-            <Ionicons name={action.icon} size={20} color="#FFFFFF" />
-          </LinearGradient>
-          <Text style={[styles.horizontalLabel, { color: theme.foreground }]}>{action.label}</Text>
-        </Pressable>
-      ))}
+      <Text style={[styles.sectionTitle, { color: theme.mutedForeground }]}>
+        Raccourcis
+      </Text>
+      <View style={styles.actionsRow}>
+        {actions.map((action, index) => (
+          <QuickActionCard key={action.href + index} action={action} index={index} />
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    marginTop: 8,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
+    justifyContent: 'flex-start',
+    gap: 24,
   },
-  cardWrapper: {
-    flex: 1,
-  },
-  cardContainer: {
-    flex: 1,
-  },
+  cardWrapper: {},
+  cardContainer: {},
   card: {
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRadius: 18,
+    gap: 8,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
   },
   label: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
   },
-  // Horizontal variant
-  horizontalContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  horizontalCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    gap: 10,
-  },
-  horizontalIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  horizontalLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
 });
+

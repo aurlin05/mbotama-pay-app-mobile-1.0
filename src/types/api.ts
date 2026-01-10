@@ -139,3 +139,22 @@ export interface RefundResponse {
   id: number;
   status: string;
 }
+
+// User Limits types
+export interface UserLimitsResponse {
+  kycLevel: string;
+  kycLevelDisplayName: string;
+  dailyLimits: {
+    limit: number;
+    used: number;
+    remaining: number;
+    percentageUsed: number;
+  };
+  monthlyLimits: {
+    limit: number;
+    used: number;
+    remaining: number;
+    percentageUsed: number | null;
+    unlimited: boolean;
+  };
+}

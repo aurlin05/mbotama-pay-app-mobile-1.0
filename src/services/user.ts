@@ -6,6 +6,7 @@ import type {
   TransactionLimitInfo,
   KycStatusResponse,
   KycDocumentRequest,
+  UserLimitsResponse,
 } from '../types/api';
 
 export const userService = {
@@ -21,6 +22,11 @@ export const userService = {
 
   async getTransactionLimit() {
     const response = await api.get<ApiResponse<TransactionLimitInfo>>('/users/me/transaction-limit');
+    return response.data;
+  },
+
+  async getLimits() {
+    const response = await api.get<ApiResponse<UserLimitsResponse>>('/users/me/limits');
     return response.data;
   },
 
