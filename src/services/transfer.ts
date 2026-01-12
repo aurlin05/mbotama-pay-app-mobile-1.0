@@ -63,4 +63,40 @@ export const transferService = {
     const response = await api.get<ApiResponse<PaymentStatusResponse>>(`/payments/status/${reference}`);
     return response.data;
   },
+
+  /**
+   * Récupère les pays supportés avec leurs gateways
+   */
+  async getSupportedCountries() {
+    const response = await api.get<ApiResponse<SupportedCountry[]>>('/operators/countries');
+    return response.data;
+  },
+
+  /**
+   * Vérifie la disponibilité d'une route
+   */
+  async checkRouteAvailability(sourceCountry: string, destCountry: string) {
+    const response = await api.get<ApiResponse<RouteAvailability>>('/transfers/route-check', {
+      source: sourceCountry,
+      dest: destCountry,
+    });
+    return response.data;
+  },
 };
+
+// Types additionnels pour le routage
+export interface SupportedCountry {
+  code: string;
+  name: string;
+  flag: string;
+  currency: string;
+  gateways: string[];
+  operators: string[];
+}
+
+export interface RouteAvailability {
+  available: boolean;
+  gateways: string[];
+  estimatedFeePercent: number;
+  reason?: string;
+}

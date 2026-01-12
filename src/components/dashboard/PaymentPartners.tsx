@@ -11,40 +11,45 @@ interface Partner {
     icon: keyof typeof Ionicons.glyphMap;
     color: string;
     bgColor: string;
+    countries?: string[];
 }
 
 const partners: Partner[] = [
     {
-        id: 'wave',
-        name: 'Wave',
-        shortName: 'Wave',
-        icon: 'water',
-        color: '#1DC4E9',
-        bgColor: '#E6F9FD',
+        id: 'feexpay',
+        name: 'FeexPay',
+        shortName: 'FeexPay',
+        icon: 'flash',
+        color: '#10B981',
+        bgColor: '#D1FAE5',
+        countries: ['BJ', 'TG', 'CI', 'CG'],
     },
     {
-        id: 'orange',
-        name: 'Orange Money',
-        shortName: 'OM',
+        id: 'cinetpay',
+        name: 'CinetPay',
+        shortName: 'CinetPay',
+        icon: 'globe',
+        color: '#3B82F6',
+        bgColor: '#DBEAFE',
+        countries: ['CI', 'SN', 'ML', 'GN', 'CM', 'BF', 'BJ', 'TG', 'NE', 'CD'],
+    },
+    {
+        id: 'paytech',
+        name: 'PayTech',
+        shortName: 'PayTech',
+        icon: 'card',
+        color: '#8B5CF6',
+        bgColor: '#EDE9FE',
+        countries: ['SN', 'CI', 'ML'],
+    },
+    {
+        id: 'mobile',
+        name: 'Mobile Money',
+        shortName: 'MoMo',
         icon: 'phone-portrait',
-        color: '#FF6600',
-        bgColor: '#FFF0E6',
-    },
-    {
-        id: 'mtn',
-        name: 'MTN Mobile Money',
-        shortName: 'MTN',
-        icon: 'wallet',
-        color: '#FFCC00',
-        bgColor: '#FFFAE6',
-    },
-    {
-        id: 'bank',
-        name: 'Banques',
-        shortName: 'Banque',
-        icon: 'business',
-        color: '#6366F1',
-        bgColor: '#EEF2FF',
+        color: '#F59E0B',
+        bgColor: '#FEF3C7',
+        countries: ['Tous'],
     },
 ];
 

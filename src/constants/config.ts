@@ -13,7 +13,6 @@ export const COUNTRY_CODES = [
   { code: '+237', country: 'CM', name: 'Cameroun', flag: '🇨🇲', currency: 'XAF' },
   { code: '+242', country: 'CG', name: 'Congo-Brazzaville', flag: '🇨🇬', currency: 'XAF' },
   { code: '+243', country: 'CD', name: 'RD Congo', flag: '🇨🇩', currency: 'CDF' },
-  { code: '+234', country: 'NG', name: 'Nigeria', flag: '🇳🇬', currency: 'NGN' },
 ];
 
 // Mapping préfixe téléphonique -> code ISO pays
@@ -29,7 +28,6 @@ export const PHONE_PREFIX_TO_ISO: Record<string, string> = {
   '+237': 'CM',
   '+242': 'CG',
   '+243': 'CD',
-  '+234': 'NG',
 };
 
 export const OTP_LENGTH = 6;

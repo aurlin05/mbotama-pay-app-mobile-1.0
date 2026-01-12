@@ -164,20 +164,13 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={variantStyles.text.color} size="small" />
       ) : (
-        <>
-          {icon && iconPosition === 'left' && <View style={styles.iconLeft}>{icon}</View>}
-          <Text
-            style={[
-              styles.text,
-              variantStyles.text,
-              sizeStyles.text,
-              textStyle,
-            ]}
-          >
-            {children}
+        <View style={styles.content}>
+          {icon && iconPosition === 'left' ? <View style={styles.iconLeft}>{icon}</View> : null}
+          <Text style={[styles.text, variantStyles.text, sizeStyles.text, textStyle]}>
+            {typeof children === 'string' ? children : children}
           </Text>
-          {icon && iconPosition === 'right' && <View style={styles.iconRight}>{icon}</View>}
-        </>
+          {icon && iconPosition === 'right' ? <View style={styles.iconRight}>{icon}</View> : null}
+        </View>
       )}
     </View>
   );

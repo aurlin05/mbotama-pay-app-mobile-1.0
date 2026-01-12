@@ -105,9 +105,33 @@ export interface TransferPreviewResponse {
   destOperatorName: string;
   useStock: boolean;
   reason?: string;
+  // Infos de routage intelligent
+  routingScore?: number;
+  routingStrategy?: 'SINGLE' | 'SINGLE_WITH_FALLBACK' | 'SPLIT' | 'BRIDGE';
+  fallbackGateways?: string[];
+  estimatedTime?: string;
+  // Bridge routing info
+  isBridgePayment?: boolean;
+  bridgeRoute?: BridgeRouteInfo;
   // Aliases pour compatibilité
   fees?: number;
   total?: number;
+}
+
+// Bridge routing types
+export interface BridgeRouteInfo {
+  routeDescription: string;
+  bridgeCountries: string[];
+  hopCount: number;
+  totalFeePercent: number;
+  legs: BridgeLegInfo[];
+}
+
+export interface BridgeLegInfo {
+  from: string;
+  to: string;
+  gateway: string;
+  feePercent: number;
 }
 
 export interface TransferResponse {
@@ -125,6 +149,15 @@ export interface TransferResponse {
   destCountry: string;
   sourceOperatorName: string;
   destOperatorName: string;
+  // Infos de routage
+  routingReason?: string;
+  usedFallback?: boolean;
+  attemptCount?: number;
+  executionTimeMs?: number;
+  // Bridge routing info
+  isBridgePayment?: boolean;
+  bridgeLegsCompleted?: number;
+  bridgeTotalLegs?: number;
   // Alias pour compatibilité
   id?: number;
 }
