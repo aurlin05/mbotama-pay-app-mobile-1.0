@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   Platform,
   Image,
+  StatusBar,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,7 +55,7 @@ const useResponsive = () => {
 export default function ProfileScreen() {
   const { theme } = useTheme();
   const responsive = useResponsive();
-  const { user, kycStatus, transactionLimit, logout, fetchUserData } = useAuthStore();
+  const { user, kycStatus, transactionLimit, logout, fetchUserData, localProfilePicture, setLocalProfilePicture } = useAuthStore();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName || '');
@@ -175,16 +176,22 @@ export default function ProfileScreen() {
       if (!result.canceled && result.assets[0]) {
         setUploadingPhoto(true);
         try {
-          // En production, uploader l'image vers un serveur et récupérer l'URL
-          // Pour l'instant, on simule avec l'URI locale
-          await userService.updateProfile({
-            profilePictureUrl: result.assets[0].uri,
-          });
-          await fetchUserData();
+          const imageUri = result.assets[0].uri;
+          // Sauvegarder localement la photo de profil
+          await setLocalProfilePicture(imageUri);
+          // Essayer aussi de mettre à jour côté serveur (pour quand le backend supportera l'upload)
+          try {
+            await userService.updateProfile({
+              profilePictureUrl: imageUri,
+            });
+            await fetchUserData();
+          } catch {
+            // Ignorer l'erreur serveur, la photo est sauvegardée localement
+          }
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           Alert.alert('Succès', 'Photo de profil mise à jour');
         } catch (error: any) {
-          Alert.alert('Erreur', error.response?.data?.message || 'Échec de la mise à jour');
+          Alert.alert('Erreur', 'Échec de la mise à jour de la photo');
         } finally {
           setUploadingPhoto(false);
         }
@@ -349,6 +356,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           {/* Header */}
@@ -360,7 +368,7 @@ export default function ProfileScreen() {
           <Card variant="elevated" style={styles.profileCard}>
             <View style={styles.profileHeader}>
               <Avatar
-                source={user?.profilePictureUrl}
+                source={localProfilePicture || user?.profilePictureUrl}
                 name={userName}
                 size="xl"
                 gradient

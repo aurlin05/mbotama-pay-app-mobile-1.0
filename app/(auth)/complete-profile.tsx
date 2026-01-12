@@ -11,6 +11,7 @@ import {
   Animated,
   Pressable,
   Dimensions,
+  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -148,6 +149,7 @@ export default function CompleteProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       {/* Background */}
       <View style={styles.bgDecoration}>
         <LinearGradient

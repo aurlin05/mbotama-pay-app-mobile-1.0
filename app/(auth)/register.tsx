@@ -12,6 +12,7 @@ import {
   Pressable,
   Dimensions,
   Modal,
+  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -201,6 +202,7 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       {/* Animated Background */}
       <View style={styles.bgDecoration}>
         <LinearGradient

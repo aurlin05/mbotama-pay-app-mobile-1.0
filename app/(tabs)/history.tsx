@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator, StatusBar, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { transferService } from '../../src/services/transfer';
@@ -33,6 +33,8 @@ export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionResponse | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const loadTransactions = useCallback(async (pageNum = 0, refresh = false) => {
     try {
@@ -87,12 +89,34 @@ export default function HistoryScreen() {
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + `, ${timeStr}`;
   };
 
+  const formatFullDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const openTransactionDetail = (transaction: TransactionResponse) => {
+    setSelectedTransaction(transaction);
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setSelectedTransaction(null);
+  };
+
   const renderTransaction = ({ item, index }: { item: TransactionResponse; index: number }) => {
     const txType = item.type === 'OUTGOING' || item.type === 'TRANSFER' ? 'outgoing' : 'incoming';
     const status = statusMap[item.status] || 'pending';
 
     return (
-      <TouchableOpacity activeOpacity={0.7}>
+      <TouchableOpacity activeOpacity={0.7} onPress={() => openTransactionDetail(item)}>
         <Card style={styles.transactionCard}>
           <View style={styles.transactionContent}>
             <View
@@ -160,9 +184,126 @@ export default function HistoryScreen() {
     </View>
   );
 
+  const renderTransactionDetailModal = () => {
+    if (!selectedTransaction) return null;
+    
+    const txType = selectedTransaction.type === 'OUTGOING' || selectedTransaction.type === 'TRANSFER' ? 'outgoing' : 'incoming';
+    const status = statusMap[selectedTransaction.status] || 'pending';
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={closeModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeModal}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.foreground }]}>Détails de la transaction</Text>
+              <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color={theme.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Icon et montant */}
+            <View style={styles.modalAmountSection}>
+              <View
+                style={[
+                  styles.modalIconContainer,
+                  { backgroundColor: txType === 'outgoing' ? theme.secondary : theme.successLight },
+                ]}
+              >
+                <Ionicons
+                  name={txType === 'outgoing' ? 'arrow-up' : 'arrow-down'}
+                  size={32}
+                  color={txType === 'outgoing' ? theme.primary : theme.success}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.modalAmount,
+                  { color: txType === 'outgoing' ? theme.foreground : theme.success },
+                ]}
+              >
+                {txType === 'outgoing' ? '-' : '+'}{formatAmount(selectedTransaction.amount)}
+              </Text>
+              <StatusBadge
+                status={status}
+                label={statusLabels[selectedTransaction.status] || selectedTransaction.status}
+                size="md"
+              />
+            </View>
+
+            {/* Détails */}
+            <View style={[styles.modalDetailsSection, { borderTopColor: theme.border }]}>
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: theme.mutedForeground }]}>Bénéficiaire</Text>
+                <Text style={[styles.detailValue, { color: theme.foreground }]}>
+                  {selectedTransaction.recipientName || '-'}
+                </Text>
+              </View>
+
+              {selectedTransaction.recipientPhone && (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: theme.mutedForeground }]}>Numéro</Text>
+                  <Text style={[styles.detailValue, { color: theme.foreground }]}>
+                    {selectedTransaction.recipientPhone}
+                  </Text>
+                </View>
+              )}
+
+              {selectedTransaction.operatorName && (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: theme.mutedForeground }]}>Opérateur</Text>
+                  <Text style={[styles.detailValue, { color: theme.foreground }]}>
+                    {selectedTransaction.operatorName}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: theme.mutedForeground }]}>Date</Text>
+                <Text style={[styles.detailValue, { color: theme.foreground }]}>
+                  {formatFullDate(selectedTransaction.createdAt)}
+                </Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: theme.mutedForeground }]}>ID Transaction</Text>
+                <Text style={[styles.detailValue, { color: theme.foreground }]}>
+                  #{selectedTransaction.id}
+                </Text>
+              </View>
+
+              {selectedTransaction.currency && (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: theme.mutedForeground }]}>Devise</Text>
+                  <Text style={[styles.detailValue, { color: theme.foreground }]}>
+                    {selectedTransaction.currency}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Bouton fermer */}
+            <TouchableOpacity
+              style={[styles.modalCloseButton, { backgroundColor: theme.primary }]}
+              onPress={closeModal}
+            >
+              <Text style={styles.modalCloseButtonText}>Fermer</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  };
+
   if (loading && transactions.length === 0) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
         </View>
@@ -172,6 +313,7 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       <FlatList
         data={transactions}
         renderItem={renderTransaction}
@@ -197,6 +339,7 @@ export default function HistoryScreen() {
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
+      {renderTransactionDetailModal()}
     </SafeAreaView>
   );
 }
@@ -288,5 +431,78 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingVertical: 20,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalAmountSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  modalAmount: {
+    fontSize: 32,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  modalDetailsSection: {
+    borderTopWidth: 1,
+    paddingTop: 20,
+    marginBottom: 24,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  detailLabel: {
+    fontSize: 14,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 16,
+  },
+  modalCloseButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

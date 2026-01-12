@@ -19,19 +19,79 @@ interface Notification {
   message: string;
   time: string;
   read: boolean;
+  action?: {
+    label: string;
+    route: string;
+  };
 }
 
 export default function HomeScreen() {
   const { theme, tokens } = useTheme();
-  const { user, kycStatus, fetchUserData } = useAuthStore();
+  const { user, kycStatus, fetchUserData, localProfilePicture } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNotifs, setShowNotifs] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { id: '1', type: 'success', title: 'Transfert réussi', message: 'Votre transfert de 25 000 FCFA a été effectué', time: 'Il y a 2h', read: false },
-    { id: '2', type: 'info', title: 'Bienvenue !', message: 'Complétez votre profil pour profiter de toutes les fonctionnalités', time: 'Hier', read: true },
-  ]);
+  
+  // Générer les notifications dynamiquement basées sur l'état utilisateur
+  const generateNotifications = useCallback((): Notification[] => {
+    const notifs: Notification[] = [];
+    
+    // Notification KYC si non vérifié
+    if (!kycStatus || kycStatus.currentLevel === 'NONE') {
+      notifs.push({
+        id: 'kyc-required',
+        type: 'warning',
+        title: 'Vérification requise',
+        message: 'Complétez votre vérification KYC pour débloquer les transferts',
+        time: 'Action requise',
+        read: false,
+        action: { label: 'Vérifier', route: '/profile/kyc' },
+      });
+    }
+    
+    // Notification profil incomplet
+    if (!user?.firstName || !user?.lastName) {
+      notifs.push({
+        id: 'profile-incomplete',
+        type: 'info',
+        title: 'Profil incomplet',
+        message: 'Ajoutez votre nom et prénom pour personnaliser votre expérience',
+        time: 'Recommandé',
+        read: false,
+        action: { label: 'Compléter', route: '/(tabs)/profile' },
+      });
+    }
+    
+    // Notification bienvenue
+    notifs.push({
+      id: 'welcome',
+      type: 'info',
+      title: 'Bienvenue sur MBotamaPay !',
+      message: 'Envoyez de l\'argent facilement vers la RDC',
+      time: 'Nouveau',
+      read: true,
+    });
+    
+    // Notification sécurité
+    notifs.push({
+      id: 'security-tip',
+      type: 'info',
+      title: 'Conseil sécurité',
+      message: 'Activez l\'authentification biométrique pour plus de sécurité',
+      time: 'Conseil',
+      read: true,
+      action: { label: 'Configurer', route: '/profile/security' },
+    });
+    
+    return notifs;
+  }, [kycStatus, user]);
+  
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  
+  useEffect(() => {
+    setNotifications(generateNotifications());
+  }, [generateNotifications]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -39,8 +99,9 @@ export default function HomeScreen() {
     try {
       const txRes = await transferService.getTransactions(0, 5);
       if (txRes.success && txRes.data) setTransactions(txRes.data.content);
-    } catch {
-      // Silent
+    } catch (error: any) {
+      // Silencieux - le backend n'est peut-être pas disponible
+      console.log('Erreur chargement transactions:', error?.message || 'Erreur réseau');
     } finally {
       setLoading(false);
     }
@@ -82,7 +143,39 @@ export default function HomeScreen() {
   };
 
   const clearNotification = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const handleNotificationAction = (notif: Notification) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowNotifs(false);
+    // Délai pour laisser le modal se fermer avant la navigation
+    if (notif.action?.route) {
+      setTimeout(() => {
+        router.push(notif.action!.route as any);
+      }, 300);
+    }
+  };
+
+  const markAllAsRead = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const clearAllNotifications = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setNotifications([]);
+  };
+
+  const handleAvatarPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/(tabs)/profile');
+  };
+
+  const handleKycBadgePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/profile/kyc');
   };
 
   return (
@@ -104,7 +197,11 @@ export default function HomeScreen() {
               <Text style={styles.userName}>{userName} 👋</Text>
             </View>
             <View style={styles.topBarRight}>
-              <Pressable style={styles.iconBtn} onPress={handleOpenNotifs}>
+              <Pressable 
+                style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.7 }]} 
+                onPress={handleOpenNotifs}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Ionicons name="notifications" size={22} color="#FFF" />
                 {unreadCount > 0 && (
                   <View style={styles.badge}>
@@ -112,10 +209,14 @@ export default function HomeScreen() {
                   </View>
                 )}
               </Pressable>
-              <Pressable style={styles.avatarBtn} onPress={() => router.push('/(tabs)/profile')}>
-                {user?.profilePictureUrl ? (
+              <Pressable 
+                style={({ pressed }) => [styles.avatarBtn, pressed && { opacity: 0.7 }]} 
+                onPress={handleAvatarPress}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                {(localProfilePicture || user?.profilePictureUrl) ? (
                   <Image 
-                    source={{ uri: user.profilePictureUrl }} 
+                    source={{ uri: localProfilePicture || user?.profilePictureUrl }} 
                     style={styles.avatarImage}
                   />
                 ) : (
@@ -133,21 +234,21 @@ export default function HomeScreen() {
           {/* Status Badge */}
           <View style={styles.statusContainer}>
             {kycApproved ? (
-              <View style={styles.verifiedBadge}>
+              <Pressable style={styles.verifiedBadge} onPress={handleKycBadgePress}>
                 <Ionicons name="shield-checkmark" size={14} color="#10B981" />
                 <Text style={styles.verifiedText}>Compte vérifié</Text>
-              </View>
+              </Pressable>
             ) : needsKyc ? (
-              <Pressable style={styles.pendingBadge} onPress={() => router.push('/(tabs)/profile')}>
+              <Pressable style={styles.pendingBadge} onPress={handleKycBadgePress}>
                 <Ionicons name="warning" size={14} color="#F59E0B" />
                 <Text style={styles.pendingText}>Vérification requise</Text>
                 <Ionicons name="chevron-forward" size={14} color="#F59E0B" />
               </Pressable>
             ) : kycPending ? (
-              <View style={styles.pendingBadge}>
+              <Pressable style={styles.pendingBadge} onPress={handleKycBadgePress}>
                 <Ionicons name="time" size={14} color="#60A5FA" />
                 <Text style={[styles.pendingText, { color: '#60A5FA' }]}>En cours de vérification</Text>
-              </View>
+              </Pressable>
             ) : null}
           </View>
         </SafeAreaView>
@@ -336,10 +437,29 @@ export default function HomeScreen() {
         <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
             <Text style={[styles.modalTitle, { color: theme.foreground }]}>Notifications</Text>
-            <Pressable onPress={() => setShowNotifs(false)} style={styles.closeBtn}>
-              <Ionicons name="close-circle" size={28} color={theme.mutedForeground} />
-            </Pressable>
+            <View style={styles.modalHeaderRight}>
+              {notifications.length > 0 && (
+                <Pressable onPress={clearAllNotifications} style={styles.clearAllBtn}>
+                  <Text style={[styles.clearAllText, { color: theme.primary }]}>Tout effacer</Text>
+                </Pressable>
+              )}
+              <Pressable onPress={() => setShowNotifs(false)} style={styles.closeBtn}>
+                <Ionicons name="close-circle" size={28} color={theme.mutedForeground} />
+              </Pressable>
+            </View>
           </View>
+          
+          {unreadCount > 0 && (
+            <Pressable 
+              style={[styles.markReadBanner, { backgroundColor: theme.primaryLighter }]}
+              onPress={markAllAsRead}
+            >
+              <Ionicons name="checkmark-done" size={18} color={theme.primary} />
+              <Text style={[styles.markReadText, { color: theme.primary }]}>
+                Marquer tout comme lu ({unreadCount})
+              </Text>
+            </Pressable>
+          )}
           
           <ScrollView style={styles.notifList}>
             {notifications.length === 0 ? (
@@ -350,6 +470,9 @@ export default function HomeScreen() {
                 <Text style={[styles.notifEmptyText, { color: theme.mutedForeground }]}>
                   Aucune notification
                 </Text>
+                <Text style={[styles.notifEmptySubtext, { color: theme.mutedForeground }]}>
+                  Vous êtes à jour !
+                </Text>
               </View>
             ) : (
               notifications.map((notif) => (
@@ -358,6 +481,7 @@ export default function HomeScreen() {
                   notif={notif} 
                   theme={theme} 
                   onDismiss={() => clearNotification(notif.id)}
+                  onAction={() => handleNotificationAction(notif)}
                 />
               ))
             )}
@@ -417,7 +541,7 @@ function TxItem({ tx, theme, isLast }: { tx: TransactionResponse; theme: any; is
   );
 }
 
-function NotificationItem({ notif, theme, onDismiss }: { notif: Notification; theme: any; onDismiss: () => void }) {
+function NotificationItem({ notif, theme, onDismiss, onAction }: { notif: Notification; theme: any; onDismiss: () => void; onAction: () => void }) {
   const iconConfig = {
     success: { icon: 'checkmark-circle' as const, color: '#10B981', bg: '#D1FAE5' },
     info: { icon: 'information-circle' as const, color: '#3366FF', bg: '#EFF6FF' },
@@ -426,21 +550,42 @@ function NotificationItem({ notif, theme, onDismiss }: { notif: Notification; th
   const config = iconConfig[notif.type];
 
   return (
-    <View style={[styles.notifItem, { backgroundColor: theme.surface }]}>
+    <Pressable 
+      style={[
+        styles.notifItem, 
+        { backgroundColor: theme.surface },
+        !notif.read && { borderLeftWidth: 3, borderLeftColor: config.color }
+      ]}
+      onPress={notif.action ? onAction : undefined}
+    >
       <View style={[styles.notifIconWrap, { backgroundColor: config.bg }]}>
         <Ionicons name={config.icon} size={22} color={config.color} />
       </View>
       <View style={styles.notifContent}>
-        <Text style={[styles.notifTitle, { color: theme.foreground }]}>{notif.title}</Text>
+        <View style={styles.notifTitleRow}>
+          <Text style={[styles.notifTitle, { color: theme.foreground }]}>{notif.title}</Text>
+          {!notif.read && <View style={[styles.unreadDot, { backgroundColor: config.color }]} />}
+        </View>
         <Text style={[styles.notifMessage, { color: theme.mutedForeground }]} numberOfLines={2}>
           {notif.message}
         </Text>
-        <Text style={[styles.notifTime, { color: theme.mutedForeground }]}>{notif.time}</Text>
+        <View style={styles.notifFooter}>
+          <Text style={[styles.notifTime, { color: theme.mutedForeground }]}>{notif.time}</Text>
+          {notif.action && (
+            <Pressable 
+              style={[styles.notifActionBtn, { backgroundColor: config.bg }]}
+              onPress={onAction}
+            >
+              <Text style={[styles.notifActionText, { color: config.color }]}>{notif.action.label}</Text>
+              <Ionicons name="arrow-forward" size={12} color={config.color} />
+            </Pressable>
+          )}
+        </View>
       </View>
       <Pressable onPress={onDismiss} style={styles.notifDismiss}>
         <Ionicons name="close" size={18} color={theme.mutedForeground} />
       </Pressable>
-    </View>
+    </Pressable>
   );
 }
 
@@ -868,12 +1013,39 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
   },
+  modalHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   modalTitle: {
     fontSize: 22,
     fontWeight: '700',
   },
+  clearAllBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  clearAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   closeBtn: {
     padding: 4,
+  },
+  markReadBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+  },
+  markReadText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   notifList: {
     flex: 1,
@@ -883,7 +1055,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
-    gap: 16,
+    gap: 12,
   },
   notifEmptyIcon: {
     width: 80,
@@ -894,7 +1066,10 @@ const styles = StyleSheet.create({
   },
   notifEmptyText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  notifEmptySubtext: {
+    fontSize: 14,
   },
   notifItem: {
     flexDirection: 'row',
@@ -913,18 +1088,45 @@ const styles = StyleSheet.create({
   notifContent: {
     flex: 1,
   },
+  notifTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   notifTitle: {
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 4,
   },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   notifMessage: {
     fontSize: 13,
     lineHeight: 18,
   },
+  notifFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
   notifTime: {
     fontSize: 11,
-    marginTop: 6,
+  },
+  notifActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  notifActionText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   notifDismiss: {
     padding: 4,

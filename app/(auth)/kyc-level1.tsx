@@ -11,6 +11,7 @@ import {
   Pressable,
   Dimensions,
   Image,
+  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -270,6 +271,7 @@ export default function KycLevel1Screen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       {/* Background */}
       <View style={styles.bgDecoration}>
         <LinearGradient

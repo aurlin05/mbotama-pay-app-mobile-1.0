@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Animated, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -22,6 +22,7 @@ export default function TermsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeAnim }}>
           {/* Header */}

@@ -7,6 +7,7 @@ import {
   Animated,
   useWindowDimensions,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -92,6 +93,7 @@ export default function PreviewScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeAnim }}>
           {/* Progress */}

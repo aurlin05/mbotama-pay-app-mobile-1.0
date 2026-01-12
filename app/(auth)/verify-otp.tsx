@@ -11,6 +11,7 @@ import {
   ScrollView,
   Dimensions,
   useWindowDimensions,
+  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -190,6 +191,7 @@ export default function VerifyOtpScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.background} />
       {/* Background decoration */}
       <View style={styles.bgDecoration}>
         <LinearGradient
