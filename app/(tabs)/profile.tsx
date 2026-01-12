@@ -11,11 +11,13 @@ import {
   Linking,
   useWindowDimensions,
   Platform,
+  Image,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../src/store/authStore';
 import { userService } from '../../src/services/user';
@@ -62,6 +64,7 @@ export default function ProfileScreen() {
   const [biometrics, setBiometrics] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricType, setBiometricType] = useState<'fingerprint' | 'faceid' | 'none'>('none');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -120,6 +123,74 @@ export default function ProfileScreen() {
       setBiometrics(saved === 'true');
     } catch {
       // Ignorer
+    }
+  };
+
+  const handleChangePhoto = async () => {
+    Alert.alert(
+      'Changer la photo',
+      'Choisissez une option',
+      [
+        {
+          text: 'Prendre une photo',
+          onPress: () => pickProfilePhoto(true),
+        },
+        {
+          text: 'Choisir dans la galerie',
+          onPress: () => pickProfilePhoto(false),
+        },
+        { text: 'Annuler', style: 'cancel' },
+      ]
+    );
+  };
+
+  const pickProfilePhoto = async (useCamera: boolean) => {
+    try {
+      let result;
+      
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission requise', 'Veuillez autoriser l\'accès à la caméra');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission requise', 'Veuillez autoriser l\'accès à la galerie');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+      }
+
+      if (!result.canceled && result.assets[0]) {
+        setUploadingPhoto(true);
+        try {
+          // En production, uploader l'image vers un serveur et récupérer l'URL
+          // Pour l'instant, on simule avec l'URI locale
+          await userService.updateProfile({
+            profilePictureUrl: result.assets[0].uri,
+          });
+          await fetchUserData();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert('Succès', 'Photo de profil mise à jour');
+        } catch (error: any) {
+          Alert.alert('Erreur', error.response?.data?.message || 'Échec de la mise à jour');
+        } finally {
+          setUploadingPhoto(false);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
     }
   };
 
@@ -198,17 +269,18 @@ export default function ProfileScreen() {
   };
 
   const getKycInfo = () => {
-    switch (kycStatus?.status) {
+    const displayName = kycStatus?.currentLevelDisplayName;
+    switch (kycStatus?.currentLevel) {
       case 'LEVEL_1':
-        return { label: 'Niveau 1', status: 'success' as const, icon: 'shield-checkmark', progress: 50 };
+        return { label: displayName || 'Niveau 1', status: 'success' as const, icon: 'shield-checkmark', progress: 50 };
       case 'LEVEL_2':
-        return { label: 'Niveau 2', status: 'success' as const, icon: 'shield-checkmark', progress: 100 };
-      case 'PENDING':
-        return { label: 'En vérification', status: 'pending' as const, icon: 'time', progress: 25 };
-      case 'REJECTED':
-        return { label: 'Rejeté', status: 'failed' as const, icon: 'close-circle', progress: 0 };
+        return { label: displayName || 'Niveau 2', status: 'success' as const, icon: 'shield-checkmark', progress: 100 };
       default:
-        return { label: 'Non vérifié', status: 'warning' as const, icon: 'shield-outline', progress: 0 };
+        // Vérifier si des documents sont en attente
+        if (kycStatus?.pendingDocuments && kycStatus.pendingDocuments.length > 0) {
+          return { label: 'En vérification', status: 'pending' as const, icon: 'time', progress: 25 };
+        }
+        return { label: displayName || 'Non vérifié', status: 'warning' as const, icon: 'shield-outline', progress: 0 };
     }
   };
 
@@ -288,6 +360,7 @@ export default function ProfileScreen() {
           <Card variant="elevated" style={styles.profileCard}>
             <View style={styles.profileHeader}>
               <Avatar
+                source={user?.profilePictureUrl}
                 name={userName}
                 size="xl"
                 gradient
@@ -297,9 +370,14 @@ export default function ProfileScreen() {
               />
               <TouchableOpacity
                 style={[styles.editAvatarBtn, { backgroundColor: theme.primary }]}
-                onPress={() => Alert.alert('Photo', 'Fonctionnalité à venir')}
+                onPress={handleChangePhoto}
+                disabled={uploadingPhoto}
               >
-                <Ionicons name="camera" size={14} color="#FFF" />
+                {uploadingPhoto ? (
+                  <Ionicons name="hourglass" size={14} color="#FFF" />
+                ) : (
+                  <Ionicons name="camera" size={14} color="#FFF" />
+                )}
               </TouchableOpacity>
             </View>
             
@@ -313,8 +391,33 @@ export default function ProfileScreen() {
               </Text>
             )}
             
+            {/* Infos supplémentaires */}
+            {(user?.city || user?.address) && (
+              <View style={styles.userLocationRow}>
+                <Ionicons name="location-outline" size={14} color={theme.mutedForeground} />
+                <Text style={[styles.userLocation, { color: theme.mutedForeground }]}>
+                  {[user?.city, user?.address].filter(Boolean).join(', ')}
+                </Text>
+              </View>
+            )}
+            
+            {user?.dateOfBirth && (
+              <View style={styles.userLocationRow}>
+                <Ionicons name="calendar-outline" size={14} color={theme.mutedForeground} />
+                <Text style={[styles.userLocation, { color: theme.mutedForeground }]}>
+                  {new Date(user.dateOfBirth).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </Text>
+              </View>
+            )}
+            
             <View style={styles.badgeRow}>
               <StatusBadge status={kycInfo.status} label={kycInfo.label} />
+              {user?.phoneVerified && (
+                <View style={[styles.verifiedBadge, { backgroundColor: theme.successLight }]}>
+                  <Ionicons name="checkmark-circle" size={12} color={theme.success} />
+                  <Text style={[styles.verifiedText, { color: theme.success }]}>Téléphone vérifié</Text>
+                </View>
+              )}
             </View>
 
             {/* Limite mensuelle */}
@@ -338,6 +441,9 @@ export default function ProfileScreen() {
                   ]}
                 />
               </View>
+              <Text style={[styles.limitRemaining, { color: theme.mutedForeground }]}>
+                {(limitMax - limitUsed).toLocaleString()} FCFA restants
+              </Text>
             </View>
           </Card>
 
@@ -607,8 +713,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 12,
   },
+  userLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  userLocation: {
+    fontSize: 13,
+  },
   badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
     marginBottom: 16,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  verifiedText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   limitSection: {
     width: '100%',
@@ -637,6 +768,11 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  limitRemaining: {
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: 'right',
   },
   quickActions: {
     flexDirection: 'row',

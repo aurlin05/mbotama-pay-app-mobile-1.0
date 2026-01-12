@@ -30,12 +30,22 @@ export interface User {
   lastName?: string;
   email?: string;
   countryCode: string;
+  kycLevel?: 'NONE' | 'LEVEL_1' | 'LEVEL_2';
+  phoneVerified?: boolean;
+  address?: string;
+  city?: string;
+  dateOfBirth?: string;
+  profilePictureUrl?: string; // Photo de profil (selfie KYC par défaut)
 }
 
 export interface UpdateProfileRequest {
   firstName?: string;
   lastName?: string;
   email?: string;
+  address?: string;
+  city?: string;
+  dateOfBirth?: string;
+  profilePictureUrl?: string;
 }
 
 export interface TransactionLimitInfo {
@@ -44,13 +54,20 @@ export interface TransactionLimitInfo {
 }
 
 // KYC types
+export type KycLevel = 'NONE' | 'LEVEL_1' | 'LEVEL_2';
+
 export interface KycStatusResponse {
-  status: 'NONE' | 'PENDING' | 'LEVEL_1' | 'LEVEL_2' | 'REJECTED';
-  level: number;
+  currentLevel: KycLevel;
+  currentLevelDisplayName: string;
+  nextLevel?: KycLevel;
+  nextLevelLimit?: number;
+  requiredDocuments: string[];
+  pendingDocuments: string[];
+  verifiedDocuments: string[];
 }
 
 export interface KycDocumentRequest {
-  documentType: string;
+  documentType: 'NATIONAL_ID' | 'PASSPORT' | 'DRIVER_LICENSE' | 'SELFIE' | 'PROOF_OF_ADDRESS' | 'OTHER';
   documentUrl: string;
 }
 

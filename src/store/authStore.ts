@@ -12,9 +12,10 @@ interface AuthState {
   isLoading: boolean;
   pendingPhone: string | null;
   pendingCountryCode: string | null;
+  isNewRegistration: boolean;
 
   setUser: (user: User | null) => void;
-  setPendingAuth: (phone: string, countryCode: string) => void;
+  setPendingAuth: (phone: string, countryCode: string, isNewRegistration?: boolean) => void;
   clearPendingAuth: () => void;
   checkAuth: () => Promise<boolean>;
   fetchUserData: () => Promise<void>;
@@ -29,12 +30,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   pendingPhone: null,
   pendingCountryCode: null,
+  isNewRegistration: false,
 
   setUser: (user) => set({ user, isAuthenticated: !!user }),
 
-  setPendingAuth: (phone, countryCode) => set({ pendingPhone: phone, pendingCountryCode: countryCode }),
+  setPendingAuth: (phone, countryCode, isNewRegistration = false) => 
+    set({ pendingPhone: phone, pendingCountryCode: countryCode, isNewRegistration }),
 
-  clearPendingAuth: () => set({ pendingPhone: null, pendingCountryCode: null }),
+  clearPendingAuth: () => set({ pendingPhone: null, pendingCountryCode: null, isNewRegistration: false }),
 
   checkAuth: async () => {
     set({ isLoading: true });
@@ -86,6 +89,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       pendingPhone: null,
       pendingCountryCode: null,
+      isNewRegistration: false,
     });
   },
 }));
